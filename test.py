@@ -3,8 +3,8 @@ import torchvision.transforms as transforms
 
 
 from count_parameters import count_param
-from facenet_pytorch.models.inception_resnet_v1 import InceptionResnetV1
-from facenet_pytorch.models.ModifiedInceptionResnetV1 import ModifiedInceptionResnetV1
+from models.inception_resnet_v1 import InceptionResnetV1
+from models.ModifiedInceptionResnetV1 import ModifiedInceptionResnetV1
 from TransformDataset import TripletDataset
 import argparse
 

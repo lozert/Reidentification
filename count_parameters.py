@@ -21,9 +21,9 @@ def count_param(model, show_layers=False):
 
 
 if __name__ == "__main__":
-    from facenet_pytorch.models.inception_resnet_v1 import InceptionResnetV1
-    from facenet_pytorch.models.AppendLinear import AppendLinear
-    from facenet_pytorch.models.ModifiedInceptionResnetV1 import ModifiedInceptionResnetV1
+    from models.inception_resnet_v1 import InceptionResnetV1
+    from models.AppendLinear import AppendLinear
+    from models.ModifiedInceptionResnetV1 import ModifiedInceptionResnetV1
     
     model_path = "model_weights3.pt"
     # original_model = InceptionResnetV1(pretrained='casia-webface')

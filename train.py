@@ -123,26 +123,28 @@ for name, param in model.named_parameters():
     else:
         param.requires_grad = False
 
+print('Пока код не рабочий')
 
-from models.utils.training import pass_epoch
+## TODO: Идёт работа над кодом
+# from models.utils.training import pass_epoch
 
-#Лосс
-loss_fn = nn.TripletMarginLoss()
+# #Лосс
+# loss_fn = nn.TripletMarginLoss()
 
-# Оптимизатор
-optimizer = optim.Adam(model.parameters(), lr=0.005)
+# # Оптимизатор
+# optimizer = optim.Adam(model.parameters(), lr=0.005)
 
-num_epochs = 2
+# num_epochs = 2
 
-for epoch in range(num_epochs):
-    print("----------------")
-    print(f"Epoch {epoch+1}/{num_epochs} training:")
-    model.train()
-    loss, metric = pass_epoch(model,  loss_fn, train_loader, optimizer, device=device)
-    print(f"Loss: {loss} \n Metric: {metric}" )
+# for epoch in range(num_epochs):
+#     print("----------------")
+#     print(f"Epoch {epoch+1}/{num_epochs} training:")
+#     model.train()
+#     loss, metric = pass_epoch(model,  loss_fn, train_loader, optimizer, device=device)
+#     print(f"Loss: {loss} \n Metric: {metric}" )
     
-x = int(input("Сохранение модели 0-да, 1-нет"))
-if x == 0:
-    model.eval()
-    # Сохранение весов модели в формате .pth
-    torch.save(model.state_dict(), 'model_weights.pth')
+# x = int(input("Сохранение модели 0-да, 1-нет"))
+# if x == 0:
+#     model.eval()
+#     # Сохранение весов модели в формате .pth
+#     torch.save(model.state_dict(), 'model_weights.pth')
