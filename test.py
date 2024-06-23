@@ -1,100 +1,101 @@
 import torch
 import torchvision.transforms as transforms
-
-
 from count_parameters import count_param
 from models.inception_resnet_v1 import InceptionResnetV1
 from models.ModifiedInceptionResnetV1 import ModifiedInceptionResnetV1
 from TransformDataset import FLDataset
 import argparse
 
-
-def validation(model, loader, device='cpu'):
-    # Предобработка данных
-    aligned = []
-    aligned2 = []
-
-    for x, y in loader: 
-        x = transform_resize(x)
-        aligned.append(transform(x))
-        aligned2.append(transform_crop(x))
-    
-    # Запись тензоров для больших изображений
-    if args.save_tensor == 'True':
-        embeddings = []
-        for index in range(len(aligned)):
-            print(f'save tensor {index}')
-            res = model(aligned[index].unsqueeze(0).to(device)).detach().cpu()
-            embeddings.append(res)
-        torch.save(torch.stack(embeddings), str(args.filename))
+# Глобальные переменные для сохраненных тензоров
 
 
-    embedding = torch.load(str(args.filename))
-    embedding = embedding.squeeze(1)
+def save_tensors(model, data_loader, device, resize_transform, crop_transform, full_transform):
+    embeddings_full = {}
+    embeddings_crop = {}
 
-    true_answer = 0
-    false_answer = 0
-
-    # Проход по каждому кропнутому тензору и косинусовое сходство со всеми другими тензорами
-    for index in range(len(aligned2)):
-        embedding_crop = model(aligned2[index].unsqueeze(0).to(device)).detach().cpu()
-        distance = torch.nn.functional.cosine_similarity(embedding_crop, embedding.to())
-        most_similar_cosine_indices = torch.argsort(distance, descending=True).squeeze(0)
+    for img, label in data_loader:
+        resized_img = resize_transform(img)
+        crop_embedding = model(crop_transform(resized_img).unsqueeze(0).to(device)).detach().cpu()
+        full_embedding = model(full_transform(resized_img).unsqueeze(0).to(device)).detach().cpu()
         
-        print(f'cosine similarity:{index} / most similar:{most_similar_cosine_indices[0:6]}')
-        if most_similar_cosine_indices[0] == index:
-            true_answer +=1
+        embeddings_crop[label] = crop_embedding
+        embeddings_full[label] = full_embedding
+
+    torch.save(embeddings_crop, 'dict_crop_tensor.pt')
+    torch.save(embeddings_full, 'dict_tensor.pt')
+    print('Save tensor done')
+
+def validate_model(model, data_loader, device, resize_transform, crop_transform, full_transform):
+
+    if args.save_tensor:
+        save_tensors(model, data_loader, device, resize_transform, crop_transform, full_transform)
+
+    embeddings_full = torch.load('dict_tensor.pt')
+    embeddings_crop = torch.load('dict_crop_tensor.pt')
+
+    correct_predictions = 0
+    incorrect_predictions = 0
+
+    for crop_label, crop_embedding in embeddings_crop.items():
+        highest_similarity = -10
+        predicted_label = None
+
+        for full_label, full_embedding in embeddings_full.items():
+            cosine_similarity = torch.nn.functional.cosine_similarity(crop_embedding, full_embedding)
+            if cosine_similarity > highest_similarity:
+                highest_similarity = cosine_similarity
+                predicted_label = full_label
+
+        print(f"Predicted label: {predicted_label} / Actual label: {crop_label}")
+        if predicted_label == crop_label:
+            correct_predictions += 1
         else:
-            false_answer +=1
+            incorrect_predictions += 1
 
+    accuracy = (correct_predictions / len(data_loader)) * 100
+    print(f"Correct: {correct_predictions}, Incorrect: {incorrect_predictions}")
+    print(f"Accuracy: {accuracy:.4f}%")
 
-    print(f"True: {true_answer}, False: {false_answer}")
-    accuracy = float(true_answer / len(loader)) * 100
-    print(f"accuracy {accuracy:.4f}%")
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Tensor saving script")
+    parser.add_argument("--save_tensor", action='store_true', help="Save cropped and full tensors to file")
+    parser.add_argument("--filename", type=str, default='tensor.pt', help="Filename for saving tensors")
+    return parser.parse_args()
 
+def main():
 
+    # Data loader
+    data_loader = FLDataset('../FakeDataset/test')
 
+    # Transforms
+    resize_transform = transforms.Compose([transforms.Resize((641, 480))])
+    crop_transform = transforms.Compose([
+        transforms.RandomCrop(size=(350, 350)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
+    full_transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
 
-parser = argparse.ArgumentParser(description="Сохранение тензора")
-parser.add_argument("-save_tensor", nargs='?', default='True', help="Сохранения не кропнутых тензоров в файл")
-parser.add_argument("-filename", type=str, default='tensor.pt', help="Название файла для сохранения")
-args = parser.parse_args()
+    # Device
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    print(f'Running on device: {device}')
 
-#Data_load
-loader = FLDataset('../FakeDataset/test')
+    # Model
+    model_path = "model_weights2.pt"
+    model = ModifiedInceptionResnetV1(device=device, num_classes=516)
+    model.load_state_dict(torch.load(model_path))
+    model.eval()
 
-#transforms
-transform_resize = transforms.Compose([
-    transforms.Resize((641, 480)),
-])
-# Обрезание изображия из исходного
-transform_crop = transforms.Compose([
-    transforms.RandomCrop(size=(350, 350)),
-    # transforms.RandomHorizontalFlip(p=0.3),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-])
+    # Print number of parameters
+    count_param(model, show_layers=False)
 
-#Применяется для исходного изображения 
-transform = transforms.Compose([
-    transforms.ToTensor(), # Преобразование изображения в тензор
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-])
+    # Validation
+    validate_model(model, data_loader, device, resize_transform, crop_transform, full_transform)
 
-# Определение устройства для выполнения вычислений
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-print('Running on device: {}'.format(device))
+args = parse_arguments()
 
-
-
-# model = InceptionResnetV1(pretrained='casia-webface', device=device)
-model_path = "model_weights4.pt"
-model = ModifiedInceptionResnetV1(device=device)
-model.load_state_dict(torch.load(model_path))
-
-model.eval()
-
-# Вывод количества параметров
-count_param(model, show_layers=False)
-
-validation(model, loader, device=device)
+if __name__ == "__main__":
+    main()
