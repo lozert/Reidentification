@@ -5,7 +5,7 @@ import torchvision.transforms as transforms
 from count_parameters import count_param
 from models.inception_resnet_v1 import InceptionResnetV1
 from models.ModifiedInceptionResnetV1 import ModifiedInceptionResnetV1
-from TransformDataset import LFWFacesDataset
+from TransformDataset import FLDataset
 import argparse
 
 
@@ -61,7 +61,7 @@ parser.add_argument("-filename", type=str, default='tensor.pt', help="Назва
 args = parser.parse_args()
 
 #Data_load
-loader = LFWFacesDataset('../FakeDataset/test')
+loader = FLDataset('../FakeDataset/test')
 
 #transforms
 transform_resize = transforms.Compose([
